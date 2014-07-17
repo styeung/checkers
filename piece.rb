@@ -14,6 +14,7 @@ class Piece
     @color = color
 
     @board[pos] = self
+    @board.pieces << self
   end
 
   def perform_slide(end_pos)
@@ -30,9 +31,7 @@ class Piece
 
     enemy_pos = [(start_pos[0] + end_pos[0]) / 2 , (start_pos[1] + end_pos[1]) / 2]
 
-    p "enemy before #{self.board[enemy_pos].class}"
     self.board[enemy_pos] = nil
-    p "enemy after #{self.board[enemy_pos].class}"
 
     self.board.render
   end
@@ -81,7 +80,7 @@ class Piece
   end
 
   def perform_moves(move_sequence)
-    if self.valid_move_seq?(move_sequence)
+    if self.valid_move_seq?(move_sequence.dup)
       self.perform_moves!(move_sequence)
     else
       raise InvalidMoveError.new("Invalid moves")
@@ -90,23 +89,25 @@ class Piece
 
   def perform_moves!(move_sequence)
     #move_sequence is an array of pos
-    new_board = self.board.deep_dup
+
     if move_sequence.length < 2
       raise InvalidMoveError.new("You did not choose an end position")
     elsif move_sequence.length == 2
       start_pos = move_sequence[0]
       next_move = move_sequence[1]
 
-      if !new_board[start_pos].move_diffs.include?(next_move)
+      if !self.board[start_pos].move_diffs.include?(next_move)
         raise InvalidMoveError.new("You cannot move there")
       else
         #need to make sure all jumps are completed if the move was a jump
-        if new_board[start_pos].is_jump?(next_move)
-          new_board[start_pos].perform_jump(next_move)
+        if self.board[start_pos].is_jump?(next_move)
+          self.board[start_pos].perform_jump(next_move)
 
-          if !new_board[next_move].move_diffs.empty?
+          if !self.board[next_move].move_diffs.empty?
             raise InvalidMoveError.new("You need to complete all jumps")
           end
+        else
+          self.board[start_pos].perform_slide(next_move)
         end
       end
 
@@ -124,11 +125,11 @@ class Piece
       start_pos = move_sequence.shift
       next_move = move_sequence[0]
 
-      if !new_board[start_pos].move_diffs(:jump).include?(next_move)
+      if !self.board[start_pos].move_diffs(:jump).include?(next_move)
         raise InvalidMoveError.new("You cannot move there")
       else
-        new_board[start_pos].perform_jump(next_move)
-        new_board[next_move].perform_moves!(move_sequence.dup)
+        self.board[start_pos].perform_jump(next_move)
+        self.board[next_move].perform_moves!(move_sequence.dup)
       end
     end
   end
@@ -145,8 +146,10 @@ class Piece
   end
 
   def valid_move_seq?(move_sequence)
+    new_board = self.board.deep_dup
+
     begin
-      self.perform_moves!(move_sequence)
+      new_board[self.pos].perform_moves!(move_sequence)
     rescue InvalidMoveError => e
       return false
     else

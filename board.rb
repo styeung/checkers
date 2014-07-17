@@ -2,10 +2,11 @@ require_relative 'piece'
 require 'colorize'
 
 class Board
-  attr_accessor :grid
+  attr_accessor :grid, :pieces
 
   def initialize(empty = false)
     @grid = Array.new(8) {Array.new(8)}
+    @pieces = []
 
     if !empty
       (0...8).each do |row|
@@ -45,6 +46,16 @@ class Board
     new_board
   end
 
+  def no_more_moves?(color)
+    team_pieces = self.deep_dup.pieces.select {|piece| piece.color == color}
+    team_pieces.all? {|piece| piece.move_diffs.empty? }
+  end
+
+  def no_more_pieces?(color)
+    self.deep_dup.pieces.none? {|piece| piece.color == color}
+  end
+
+
   def render
     column_hash = {
       1 => "a",
@@ -67,7 +78,11 @@ class Board
           pos = [row - 1, column - 1]
           if pos[0] % 2 != pos[1] % 2
             if !self[pos].nil?
-              print " ☻ ".colorize(:color => self[pos].color, :background => :light_black)
+              if self[pos].king_status
+                print " Ⓚ ".colorize(:color => self[pos].color, :background => :light_black)
+              else
+                print " ☻ ".colorize(:color => self[pos].color, :background => :light_black)
+              end
             else
               print "   ".colorize(:background => :light_black)
             end
