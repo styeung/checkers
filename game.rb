@@ -1,39 +1,54 @@
 require_relative 'board'
 require 'debugger'
+require 'yaml'
 
 class Game
-  attr_accessor :board, :current_turn
+  attr_accessor :board, :current_color, :turn
 
-  def initialize
-    @board = Board.new
-    @current_turn = :black
+  TURN_ARRAY = [:black, :red]
+
+  def initialize(board = Board.new)
+    @board = board
+    @current_color = :black
+    @turn = 0
   end
 
   def play
-    turn_array = [:black, :red]
-    turn = 0
-
-    until self.over?(self.current_turn)
+    until self.over?(self.current_color)
       begin
         self.board.render
-        self.current_turn = turn_array[turn % 2]
-        puts "#{self.current_turn.capitalize} turn"
-        puts "Enter your move list separated by spaces"
+        self.current_color = TURN_ARRAY[self.turn % 2]
+        puts "#{self.current_color.capitalize} turn"
+        puts "Enter your move list separated by spaces or press 's' to save"
         response = gets.chomp
+
+        if response == "s"
+          puts "Enter in a name for the save file"
+          file_name = gets.chomp
+          File.open("#{file_name}.yaml", "w") {|f| f.write self.to_yaml }
+          next
+        end
+
         move_list = parse_response(response)
-        self.board[move_list[0]].perform_moves(move_list)
+
+        first_position = move_list[0]
+        if self.board[first_position].color != self.current_color
+          raise InvalidMoveError.new("That is not your piece")
+        end
+
+        self.board[first_position].perform_moves(move_list)
       rescue InvalidMoveError => e
         puts e.message
         puts "Please try again"
         retry
       end
 
-      opponent_color = turn_array[(turn + 1) % 2]
+      opponent_color = TURN_ARRAY[(self.turn + 1) % 2]
       if self.over?(opponent_color)
         puts "#{self.current_turn.capitalize} wins!"
       end
 
-      turn += 1
+      self.turn += 1
     end
   end
 
@@ -76,6 +91,14 @@ class Game
     return true if self.board.no_more_moves?(color)
     return true if self.board.no_more_pieces?(color)
   end
+end
 
-
+if __FILE__ == $PROGRAM_NAME
+  if ARGV[0].nil?
+    game = Game.new
+    game.play
+  else
+    game = YAML::load_file(ARGV.shift)
+    game.play
+  end
 end

@@ -19,21 +19,48 @@ class Piece
 
   def perform_slide(end_pos)
     start_pos = self.pos
-    new_piece = Piece.new(self.board, end_pos, self.king_status, self.color)
+    king_boolean = false
+
+    if end_pos[0] == 0
+      if self.color == :black
+        king_boolean = true
+      end
+    elsif self.pos[0] == 7
+      if self.color == :red
+        king_boolean = true
+      end
+    end
+
+    new_piece = Piece.new(self.board, end_pos, king_boolean, self.color)
     self.board[start_pos] = nil
-    self.board.render
+
+    p new_piece.king_status
+    p self.board[end_pos].king_status
+
   end
 
   def perform_jump(end_pos)
     start_pos = self.pos
-    new_piece = Piece.new(self.board, end_pos, self.king_status, self.color)
+    king_boolean = false
+
+    if end_pos[0] == 0
+      if self.color == :black
+        king_boolean = true
+      end
+    elsif self.pos[0] == 7
+      if self.color == :red
+        king_boolean = true
+      end
+    end
+
+    new_piece = Piece.new(self.board, end_pos, king_boolean, self.color)
     self.board[start_pos] = nil
 
     enemy_pos = [(start_pos[0] + end_pos[0]) / 2 , (start_pos[1] + end_pos[1]) / 2]
 
+    self.board.pieces -= [self.board[enemy_pos]]
+    p self.board.pieces.count
     self.board[enemy_pos] = nil
-
-    self.board.render
   end
 
   def move_diffs(type = nil)
@@ -47,30 +74,34 @@ class Piece
 
     deltas.each do |delta|
       current_pos = self.pos
-      new_row = current_pos[0] + delta[0]
-      new_column = current_pos[1] + delta[1]
+      next_row = current_pos[0] + delta[0]
+      next_column = current_pos[1] + delta[1]
+      next_next_row = current_pos[0] + delta[0] * 2
+      next_next_column = current_pos[1] + delta[1] * 2
 
-      #check if new position is even on the grid
-      next if !new_row.between?(0,7) || !new_column.between?(0,7)
+      next_pos = [next_row, next_column]
+      next_next_pos = [next_next_row, next_next_column]
 
-      new_pos = [new_row, new_column]
-
-      if self.color == :black && new_row > current_pos[0]
+      if self.color == :black && next_row > current_pos[0]
         next if self.king_status == false
-      elsif self.color == :red && new_row < current_pos[0]
+      elsif self.color == :red && next_row < current_pos[0]
         next if self.king_status == false
       end
 
       if type == :slide || type.nil?
-        if self.board[new_pos].nil?
-          direction_array << new_pos
+        next if !next_row.between?(0,7) || !next_column.between?(0,7)
+        if self.board[next_pos].nil?
+          direction_array << next_pos
         end
       end
 
       if type == :jump|| type.nil?
-        if !self.board[new_pos].nil? && self.board[new_pos].color != self.color
-          new_pos_with_jump = [current_pos[0] + delta[0] * 2, current_pos[1] + delta[1] * 2]
-          direction_array << new_pos_with_jump
+        next if !next_next_row.between?(0,7) || !next_next_column.between?(0,7)
+        if !self.board[next_pos].nil? && self.board[next_pos].color != self.color
+          if self.board[next_next_pos].nil?
+            new_pos_with_jump = [next_next_row, next_next_column]
+            direction_array << new_pos_with_jump
+          end
         end
       end
 
@@ -100,10 +131,12 @@ class Piece
         raise InvalidMoveError.new("You cannot move there")
       else
         #need to make sure all jumps are completed if the move was a jump
-        if self.board[start_pos].is_jump?(next_move)
+        if self.is_jump?(start_pos, next_move)
           self.board[start_pos].perform_jump(next_move)
 
           if !self.board[next_move].move_diffs.empty?
+            p "next_move is #{next_move}"
+            p self.board[next_move].move_diffs
             raise InvalidMoveError.new("You need to complete all jumps")
           end
         else
@@ -116,7 +149,7 @@ class Piece
       #makes sure each move is a jump
       (0...move_sequence.length).each do |num|
         unless num == 0
-          if !move_sequence[num - 1].is_jump?(move_sequence[num])
+          if !self.is_jump?(move_sequence[num - 1], move_sequence[num])
             raise InvalidMoveError.new("You cannot mix slides and jumps")
           end
         end
@@ -132,11 +165,12 @@ class Piece
         self.board[next_move].perform_moves!(move_sequence.dup)
       end
     end
+
   end
 
-  def is_jump?(end_pos)
-    row_diff = (self.pos[0] - end_pos[0]).abs
-    col_diff = (self.pos[1] - end_pos[1]).abs
+  def is_jump?(start_pos, end_pos)
+    row_diff = (start_pos[0] - end_pos[0]).abs
+    col_diff = (start_pos[1] - end_pos[1]).abs
 
     raise InvalidMoveError.new("Not a valid move") if row_diff != col_diff
 
@@ -151,19 +185,20 @@ class Piece
     begin
       new_board[self.pos].perform_moves!(move_sequence)
     rescue InvalidMoveError => e
+      p e.message
       return false
     else
       return true
     end
   end
 
-  def maybe_promote
+  def is_king?
     if self.pos[0] == 0
-      if self.color == :red
+      if self.color == :black
         return true
       end
     elsif self.pos[0] == 7
-      if self.color == :black
+      if self.color == :red
         return true
       end
     end
