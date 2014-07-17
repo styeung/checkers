@@ -1,6 +1,9 @@
 require_relative 'board'
 require 'debugger'
 
+class InvalidMoveError < StandardError
+end
+
 class Piece
   attr_accessor :board, :pos, :king_status, :color
 
@@ -48,25 +51,41 @@ class Piece
       new_row = current_pos[0] + delta[0]
       new_column = current_pos[1] + delta[1]
 
+      #check if new position is even on the grid
+      next if !new_row.between?(0,7) || !new_column.between?(0,7)
+
+      new_pos = [new_row, new_column]
+
+      if self.color == :black && new_row > current_pos[0]
+        next if self.king_status == false
+      elsif self.color == :red && new_row < current_pos[0]
+        next if self.king_status == false
+      end
+
       if type == :slide || type.nil?
-        if self.color == :black && new_row > current_pos
-          next if self.king_status == false
-        elsif self.color == :red && new_row < current_pos
-          next if self.king_status == false
+        if self.board[new_pos].nil?
+          direction_array << new_pos
         end
       end
 
-      if type == :jump || type.nil?
-
-        if self.board[new_row, new_column].nil?
-          direction_array << delta
-        elsif self.board[new_row, new_column].color != self.color
-          direction_array << [delta[0] * 2, delta[1] * 2]
+      if type == :jump|| type.nil?
+        if !self.board[new_pos].nil? && self.board[new_pos].color != self.color
+          new_pos_with_jump = [current_pos[0] + delta[0] * 2, current_pos[1] + delta[1] * 2]
+          direction_array << new_pos_with_jump
         end
       end
+
     end
 
     direction_array
+  end
+
+  def perform_moves(move_sequence)
+    if self.valid_move_seq?(move_sequence)
+      self.perform_moves!(move_sequence)
+    else
+      raise InvalidMoveError.new("Invalid moves")
+    end
   end
 
   def perform_moves!(move_sequence)
@@ -75,12 +94,23 @@ class Piece
     if move_sequence.length < 2
       raise InvalidMoveError.new("You did not choose an end position")
     elsif move_sequence.length == 2
-      start_pos = move_sequence[1]
-      next_move = move_sequence[0]
+      start_pos = move_sequence[0]
+      next_move = move_sequence[1]
 
       if !new_board[start_pos].move_diffs.include?(next_move)
         raise InvalidMoveError.new("You cannot move there")
+      else
+        #need to make sure all jumps are completed if the move was a jump
+        if new_board[start_pos].is_jump?(next_move)
+          new_board[start_pos].perform_jump(next_move)
+
+          if !new_board[next_move].move_diffs.empty?
+            raise InvalidMoveError.new("You need to complete all jumps")
+          end
+        end
       end
+
+
     elsif move_sequence.length > 2
       #makes sure each move is a jump
       (0...move_sequence.length).each do |num|
@@ -94,16 +124,18 @@ class Piece
       start_pos = move_sequence.shift
       next_move = move_sequence[0]
 
-      if !new_board[start_pos].move_diffs.include?(next_move)
+      if !new_board[start_pos].move_diffs(:jump).include?(next_move)
         raise InvalidMoveError.new("You cannot move there")
       else
-        new_board[start_pos].perform_slide(next_move) if
-
+        new_board[start_pos].perform_jump(next_move)
+        new_board[next_move].perform_moves!(move_sequence.dup)
+      end
+    end
   end
 
   def is_jump?(end_pos)
-    row_diff = (self[0] - end_pos[0]).abs
-    col_diff = (self[1] - end_pos[1]).abs
+    row_diff = (self.pos[0] - end_pos[0]).abs
+    col_diff = (self.pos[1] - end_pos[1]).abs
 
     raise InvalidMoveError.new("Not a valid move") if row_diff != col_diff
 
@@ -112,8 +144,14 @@ class Piece
     return false
   end
 
-  def valid_move_seq?
-
+  def valid_move_seq?(move_sequence)
+    begin
+      self.perform_moves!(move_sequence)
+    rescue InvalidMoveError => e
+      return false
+    else
+      return true
+    end
   end
 
   def maybe_promote

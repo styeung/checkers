@@ -34,9 +34,11 @@ class Board
 
   def deep_dup
     new_board = Board.new(true)
-    self.grid.each do |space|
-      if !space.nil?
-        Piece.new(new_board, space.pos.dup, space.king_status, space.color)
+    self.grid.each do |row|
+      row.each do |space|
+        if !space.nil?
+          Piece.new(new_board, space.pos.dup, space.king_status, space.color)
+        end
       end
     end
 
@@ -58,9 +60,9 @@ class Board
     (0...10).each do |row|
       (0...10).each do |column|
         if row == 0 || row == 9
-          column.between?(1,8) ? print " #{column_hash[column]} " : print "   "
+          print column.between?(1,8) ? " #{column_hash[column]} " : "   "
         elsif column == 0 || column == 9
-          row.between?(1,8) ? print " #{row} " : print "   "
+          print row.between?(1,8) ? " #{row} " : "   "
         else
           pos = [row - 1, column - 1]
           if pos[0] % 2 != pos[1] % 2
