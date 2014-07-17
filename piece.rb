@@ -26,7 +26,7 @@ class Piece
     self.board[enemy_pos] = nil
   end
 
-  def move_diffs
+  def move_diffs(type = nil)
     deltas = [
       [-1, -1],
       [-1, 1],
@@ -38,25 +38,39 @@ class Piece
     deltas.each do |delta|
       current_pos = self.pos
 
-      if self.color == :red && new_row > current_pos
-        next if self.king_status == false
-      elsif self.color == :black && new_row < current_pos
-        next if self.king_status == false
+      if type == :slide || type.nil?
+        if self.color == :red && new_row > current_pos
+          next if self.king_status == false
+        elsif self.color == :black && new_row < current_pos
+          next if self.king_status == false
+        end
       end
 
-      if self.board[new_row, new_column].nil?
-        direction_array << delta
-      elsif self.board[new_row, new_column].color != self.color
-        direction_array << [delta[0] * 2, delta[1] * 2
+      if type == :jump || type.nil?
+
+        if self.board[new_row, new_column].nil?
+          direction_array << delta
+        elsif self.board[new_row, new_column].color != self.color
+          direction_array << [delta[0] * 2, delta[1] * 2]
+        end
       end
     end
 
     direction_array
   end
 
-  def moves
-
-  end
+  # def moves(start_pos, type = nil)
+  #   move_list = []
+  #   self.move_diffs.each do |delta|
+  #     move_list += [start_pos[0] + delta[0], start_pos[1] + delta[1]]
+  #   end
+  #
+  #   move_list.each do |move|
+  #     if (move[0] - start_pos[0]).abs > 1
+  #       move_type = :jump
+  #       move_list += moves(move[0], move_type)
+  #
+  # end
 
   def maybe_promote
     if self.pos[0] == 0
