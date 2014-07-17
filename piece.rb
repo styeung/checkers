@@ -1,3 +1,6 @@
+require_relative 'board'
+require 'debugger'
+
 class Piece
   attr_accessor :board, :pos, :king_status, :color
 
@@ -14,7 +17,7 @@ class Piece
     start_pos = self.pos
     new_piece = Piece.new(self.board, end_pos, self.king_status, self.color)
     self.board[start_pos] = nil
-
+    self.board.render
   end
 
   def perform_jump(end_pos)
@@ -22,8 +25,13 @@ class Piece
     new_piece = Piece.new(self.board, end_pos, self.king_status, self.color)
     self.board[start_pos] = nil
 
-    enemy_pos = [(start_pos[0] + end_pos[0]) / 2 , (start_pos[0] + end_pos[0]) / 2]
+    enemy_pos = [(start_pos[0] + end_pos[0]) / 2 , (start_pos[1] + end_pos[1]) / 2]
+
+    p "enemy before #{self.board[enemy_pos].class}"
     self.board[enemy_pos] = nil
+    p "enemy after #{self.board[enemy_pos].class}"
+
+    self.board.render
   end
 
   def move_diffs(type = nil)
@@ -58,6 +66,9 @@ class Piece
 
     direction_array
   end
+
+  def perform_moves(move_sequence)
+    move_array = move_sequence.split(" ")
 
   # def moves(start_pos, type = nil)
   #   move_list = []
