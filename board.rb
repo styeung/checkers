@@ -4,21 +4,22 @@ require 'colorize'
 class Board
   attr_accessor :grid
 
-  def initialize()
+  def initialize(empty = false)
     @grid = Array.new(8) {Array.new(8)}
 
-    (0...8).each do |row|
-      (0...8).each do |column|
-        if row < 3 && (row % 2 != column % 2)
-          Piece.new(self, [row, column], false, :black)
-        end
+    if !empty
+      (0...8).each do |row|
+        (0...8).each do |column|
+          if row < 3 && (row % 2 != column % 2)
+            Piece.new(self, [row, column], false, :red)
+          end
 
-        if row > 4 && (row % 2 != column % 2)
-          Piece.new(self, [row, column], false, :red)
+          if row > 4 && (row % 2 != column % 2)
+            Piece.new(self, [row, column], false, :black)
+          end
         end
       end
     end
-
   end
 
   def [](pos)
@@ -29,6 +30,17 @@ class Board
   def []=(pos, piece)
     row, column = pos
     self.grid[row][column] = piece
+  end
+
+  def deep_dup
+    new_board = Board.new(true)
+    self.grid.each do |space|
+      if !space.nil?
+        Piece.new(new_board, space.pos.dup, space.king_status, space.color)
+      end
+    end
+
+    new_board
   end
 
   def render
@@ -46,17 +58,9 @@ class Board
     (0...10).each do |row|
       (0...10).each do |column|
         if row == 0 || row == 9
-          if column.between?(1,8)
-            print " #{column_hash[column]} "
-          else
-            print "   "
-          end
+          column.between?(1,8) ? print " #{column_hash[column]} " : print "   "
         elsif column == 0 || column == 9
-          if row.between?(1,8)
-            print " #{row} "
-          else
-            print "   "
-          end
+          row.between?(1,8) ? print " #{row} " : print "   "
         else
           pos = [row - 1, column - 1]
           if pos[0] % 2 != pos[1] % 2
@@ -70,6 +74,7 @@ class Board
           end
         end
       end
+
       puts
     end
 

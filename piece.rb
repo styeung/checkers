@@ -45,11 +45,13 @@ class Piece
 
     deltas.each do |delta|
       current_pos = self.pos
+      new_row = current_pos[0] + delta[0]
+      new_column = current_pos[1] + delta[1]
 
       if type == :slide || type.nil?
-        if self.color == :red && new_row > current_pos
+        if self.color == :black && new_row > current_pos
           next if self.king_status == false
-        elsif self.color == :black && new_row < current_pos
+        elsif self.color == :red && new_row < current_pos
           next if self.king_status == false
         end
       end
@@ -67,21 +69,52 @@ class Piece
     direction_array
   end
 
-  def perform_moves(move_sequence)
-    move_array = move_sequence.split(" ")
+  def perform_moves!(move_sequence)
+    #move_sequence is an array of pos
+    new_board = self.board.deep_dup
+    if move_sequence.length < 2
+      raise InvalidMoveError.new("You did not choose an end position")
+    elsif move_sequence.length == 2
+      start_pos = move_sequence[1]
+      next_move = move_sequence[0]
 
-  # def moves(start_pos, type = nil)
-  #   move_list = []
-  #   self.move_diffs.each do |delta|
-  #     move_list += [start_pos[0] + delta[0], start_pos[1] + delta[1]]
-  #   end
-  #
-  #   move_list.each do |move|
-  #     if (move[0] - start_pos[0]).abs > 1
-  #       move_type = :jump
-  #       move_list += moves(move[0], move_type)
-  #
-  # end
+      if !new_board[start_pos].move_diffs.include?(next_move)
+        raise InvalidMoveError.new("You cannot move there")
+      end
+    elsif move_sequence.length > 2
+      #makes sure each move is a jump
+      (0...move_sequence.length).each do |num|
+        unless num == 0
+          if !move_sequence[num - 1].is_jump?(move_sequence[num])
+            raise InvalidMoveError.new("You cannot mix slides and jumps")
+          end
+        end
+      end
+
+      start_pos = move_sequence.shift
+      next_move = move_sequence[0]
+
+      if !new_board[start_pos].move_diffs.include?(next_move)
+        raise InvalidMoveError.new("You cannot move there")
+      else
+        new_board[start_pos].perform_slide(next_move) if
+
+  end
+
+  def is_jump?(end_pos)
+    row_diff = (self[0] - end_pos[0]).abs
+    col_diff = (self[1] - end_pos[1]).abs
+
+    raise InvalidMoveError.new("Not a valid move") if row_diff != col_diff
+
+    return true if row_diff > 1
+
+    return false
+  end
+
+  def valid_move_seq?
+
+  end
 
   def maybe_promote
     if self.pos[0] == 0
